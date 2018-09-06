@@ -37,6 +37,7 @@ class Bot(object):
                 root_dir=root_dir,
                 ssh_key_file=self._config.ssh_key_file,
                 timeout=self._config.git_timeout,
+                reference=self._config.git_reference_repo,
             )
             self._run(repo_manager)
 
