@@ -1,4 +1,4 @@
-[![build status](https://travis-ci.org/smarkets/marge-bot.png?branch=master)](https://travis-ci.org/smarkets/marge-bot)
+[![build status](https://travis-ci.org/smarkets/marge-bot.svg?branch=master)](https://travis-ci.org/smarkets/marge-bot)
 
 # Marge-bot
 
@@ -77,11 +77,15 @@ optional arguments:
   --embargo INTERVAL[,..]
                         Time(s) during which no merging is to take place, e.g. "Friday 1pm - Monday 9am".
                            [env var: MARGE_EMBARGO] (default: None)
-  --use-merge-strategy  Use git merge instead of git rebase (EXPERIMENTAL)
-                        Enable if you use a workflow based on merge-commits and not linear history.
+  --use-merge-strategy  Use git merge instead of git rebase to update the *source* branch (EXPERIMENTAL)
+                        If you need to use a strict no-rebase workflow (in most cases
+                        you don't want this, even if you configured gitlab to use merge requests
+                        to use merge commits on the *target* branch (the default).)
                            [env var: MARGE_USE_MERGE_STRATEGY] (default: False)
   --add-tested          Add "Tested: marge-bot <$MR_URL>" for the final commit on branch after it passed CI.
                            [env var: MARGE_ADD_TESTED] (default: False)
+  --batch               Enable processing MRs in batches
+                           [env var: MARGE_BATCH] (default: False)
   --add-part-of         Add "Part-of: <$MR_URL>" to each commit in MR.
                            [env var: MARGE_ADD_PART_OF] (default: False)
   --add-reviewers       Add "Reviewed-by: $approver" for each approver of MR to each commit in MR.
@@ -89,11 +93,15 @@ optional arguments:
   --impersonate-approvers
                         Marge-bot pushes effectively don't change approval status.
                            [env var: MARGE_IMPERSONATE_APPROVERS] (default: False)
+  --merge-order         The order you want marge to merge its requests.
+                        As of earliest merge request creation time (created_at) or update time (updated_at)
+                          [env var: MARGE_MERGE_ORDER] (default: created_at)
   --approval-reset-timeout APPROVAL_RESET_TIMEOUT
                         How long to wait for approvals to reset after pushing.
                         Only useful with the "new commits remove all approvals" option in a project's settings.
                         This is to handle the potential race condition where approvals don't reset in GitLab
                         after a force push due to slow processing of the event.
+                           [env var: MARGE_APPROVAL_RESET_TIMEOUT] (default: 0s)
   --project-regexp PROJECT_REGEXP
                         Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'.
                            [env var: MARGE_PROJECT_REGEXP] (default: .*)
@@ -106,13 +114,14 @@ optional arguments:
   --git-timeout GIT_TIMEOUT
                         How long a single git operation can take.
                            [env var: MARGE_GIT_TIMEOUT] (default: 120s)
+  --git-reference-repo GIT_REFERENCE_REPO
+                        A reference repo to be used when git cloning.
+                           [env var: MARGE_GIT_REFERENCE_REPO] (default: None)
   --branch-regexp BRANCH_REGEXP
                         Only process MRs whose target branches match the given regular expression.
                            [env var: MARGE_BRANCH_REGEXP] (default: .*)
   --debug               Debug logging (includes all HTTP requests etc).
                            [env var: MARGE_DEBUG] (default: False)
-  --batch               Enable processing MRs in batches.
-                           [env var: MARGE_BATCH] (default: False)
 ```
 Here is a config file example
 ```yaml
@@ -224,6 +233,15 @@ docker run --restart=on-failure \
   --config-file=/configuration/marge-bot-config.yaml
 ```
 
+By default docker will use the `latest` tag, which corresponds to the latest 
+stable version. You can also use the `stable` tag to make this more explicit.
+If you want a development version, you can use the `master` tag to obtain an
+image built from the HEAD commit of the `master` branch. Note that this image
+may contain bugs.
+
+You can also specify a particular version as a tag, e.g.
+`smarkets/marge-bot:0.7.0`.
+
 ### Running marge-bot in kubernetes
 It's also possible to run marge in kubernetes, e.g. here's how you use a ktmpl
 template:
@@ -247,7 +265,7 @@ will pick up any changes in membership at runtime.
 #### Installing marge-bot with nix
 
 Alternatively, if you prefer not to use docker, you can also directly run marge.
-If you use [https://nixos.org/nix/](nix) do `nix-env --install -f default.nix`.
+If you use [nix](https://nixos.org/nix/) do `nix-env --install -f default.nix`.
 
 The nix install should be fully reproducible on any version of linux (and also
 work on OS X, although this is not something we properly test). If you don't
